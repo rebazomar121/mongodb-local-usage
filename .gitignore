@@ -11,3 +11,8 @@ data/*
 *.tar.lrz
 *.tar.lzo
 *.tar.lzo
+node_modules
+package-lock.json
+.env
+downloads/*
+uploads/*

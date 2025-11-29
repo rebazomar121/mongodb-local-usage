@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MongoDB Backup & Restore</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin: 5px;
+        }
+
+        .button:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .button:active {
+            transform: translateY(0);
+        }
+
+        .button-success {
+            background: #10b981;
+        }
+
+        .button-success:hover {
+            background: #059669;
+        }
+
+        .button-danger {
+            background: #ef4444;
+        }
+
+        .button-danger:hover {
+            background: #dc2626;
+        }
+
+        #databaseList {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .database-item {
+            background: #f3f4f6;
+            padding: 20px;
+            border-radius: 10px;
+            border: 2px solid #e5e7eb;
+            transition: all 0.3s ease;
+        }
+
+        .database-item:hover {
+            border-color: #667eea;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.2);
+        }
+
+        .database-name {
+            font-weight: bold;
+            font-size: 1.2em;
+            color: #1f2937;
+            margin-bottom: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #374151;
+            font-weight: 600;
+        }
+
+        input[type="text"],
+        input[type="file"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+
+        input[type="text"]:focus,
+        input[type="file"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .message {
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .message.success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 2px solid #10b981;
+        }
+
+        .message.error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 2px solid #ef4444;
+        }
+
+        .message.info {
+            background: #dbeafe;
+            color: #1e40af;
+            border: 2px solid #3b82f6;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f4f6;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            width: 100%;
+        }
+
+        .file-input-wrapper input[type=file] {
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            cursor: pointer;
+            width: 100%;
+            height: 100%;
+        }
+
+        .file-input-label {
+            display: block;
+            padding: 12px;
+            background: #f3f4f6;
+            border: 2px dashed #9ca3af;
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .file-input-label:hover {
+            border-color: #667eea;
+            background: #e0e7ff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>MongoDB Backup & Restore Manager</h1>
+
+        <!-- Dump/Backup Section -->
+        <div class="card">
+            <h2>Backup Database</h2>
+            <button class="button" onclick="loadDatabases()">Refresh Database List</button>
+
+            <div class="loading" id="dumpLoading">
+                <div class="spinner"></div>
+                <p>Loading databases...</p>
+            </div>
+
+            <div id="databaseList"></div>
+
+            <div class="message" id="dumpMessage"></div>
+        </div>
+
+        <!-- Restore Section -->
+        <div class="card">
+            <h2>Restore Database</h2>
+
+            <form id="restoreForm" onsubmit="restoreDatabase(event)">
+                <div class="form-group">
+                    <label for="databaseName">Database Name:</label>
+                    <input type="text" id="databaseName" placeholder="Enter database name to restore" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Upload Backup Folder (select all files in the backup folder):</label>
+                    <div class="file-input-wrapper">
+                        <input type="file" id="backupFiles" webkitdirectory directory multiple required>
+                        <div class="file-input-label">
+                            Click to select backup folder
+                        </div>
+                    </div>
+                    <small style="color: #6b7280; display: block; margin-top: 5px;">
+                        Select the folder containing .bson and .metadata.json files
+                    </small>
+                </div>
+
+                <button type="submit" class="button button-success">Restore Database</button>
+            </form>
+
+            <div class="loading" id="restoreLoading">
+                <div class="spinner"></div>
+                <p>Restoring database...</p>
+            </div>
+
+            <div class="message" id="restoreMessage"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:1532';
+
+        // Show message
+        function showMessage(elementId, message, type) {
+            const el = document.getElementById(elementId);
+            el.textContent = message;
+            el.className = `message ${type}`;
+            el.style.display = 'block';
+
+            setTimeout(() => {
+                el.style.display = 'none';
+            }, 5000);
+        }
+
+        // Load databases
+        async function loadDatabases() {
+            const loading = document.getElementById('dumpLoading');
+            const listContainer = document.getElementById('databaseList');
+
+            loading.style.display = 'block';
+            listContainer.innerHTML = '';
+
+            try {
+                const response = await fetch(`${API_URL}/databases`);
+                const data = await response.json();
+
+                if (data.success) {
+                    listContainer.innerHTML = data.databases.map(db => `
+                        <div class="database-item">
+                            <div class="database-name">${db}</div>
+                            <button class="button button-success" onclick="dumpDatabase('${db}')">
+                                Backup
+                            </button>
+                        </div>
+                    `).join('');
+                } else {
+                    showMessage('dumpMessage', data.message || 'Failed to load databases', 'error');
+                }
+            } catch (error) {
+                showMessage('dumpMessage', 'Error connecting to server: ' + error.message, 'error');
+            } finally {
+                loading.style.display = 'none';
+            }
+        }
+
+        // Dump database
+        async function dumpDatabase(dbName) {
+            showMessage('dumpMessage', `Starting backup for ${dbName}...`, 'info');
+
+            try {
+                const response = await fetch(`${API_URL}/dump`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ database: dbName }),
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showMessage('dumpMessage', `Backup successful! File saved to: ${data.path}`, 'success');
+
+                    // Trigger download
+                    if (data.downloadUrl) {
+                        window.location.href = `${API_URL}${data.downloadUrl}`;
+                    }
+                } else {
+                    showMessage('dumpMessage', data.message || 'Backup failed', 'error');
+                }
+            } catch (error) {
+                showMessage('dumpMessage', 'Error: ' + error.message, 'error');
+            }
+        }
+
+        // Restore database
+        async function restoreDatabase(event) {
+            event.preventDefault();
+
+            const dbName = document.getElementById('databaseName').value;
+            const files = document.getElementById('backupFiles').files;
+            const loading = document.getElementById('restoreLoading');
+
+            if (files.length === 0) {
+                showMessage('restoreMessage', 'Please select backup files', 'error');
+                return;
+            }
+
+            loading.style.display = 'block';
+
+            const formData = new FormData();
+            formData.append('database', dbName);
+
+            for (let file of files) {
+                formData.append('files', file, file.webkitRelativePath || file.name);
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/restore`, {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showMessage('restoreMessage', `Database "${dbName}" restored successfully!`, 'success');
+                    document.getElementById('restoreForm').reset();
+                } else {
+                    showMessage('restoreMessage', data.message || 'Restore failed', 'error');
+                }
+            } catch (error) {
+                showMessage('restoreMessage', 'Error: ' + error.message, 'error');
+            } finally {
+                loading.style.display = 'none';
+            }
+        }
+
+        // Update file input label
+        document.getElementById('backupFiles').addEventListener('change', function(e) {
+            const label = this.parentElement.querySelector('.file-input-label');
+            if (this.files.length > 0) {
+                label.textContent = `${this.files.length} files selected`;
+                label.style.borderColor = '#10b981';
+                label.style.background = '#d1fae5';
+            }
+        });
+
+        // Load databases on page load
+        window.addEventListener('load', loadDatabases);
+    </script>
+</body>
+</html>

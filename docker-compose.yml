@@ -4,12 +4,52 @@ services:
   mongodb:
     image: mongo:latest
     container_name: mongodb
-    command: ["--replSet", "rs0", "--bind_ip_all"]
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--port", "27017"]
     ports:
       - "27017:27017"
     volumes:
       - mongodb_data:/data/db
       - mongodb_config:/data/configdb
+    extra_hosts:
+      - "localhost:host-gateway"
+    networks:
+      - mongodb_network
+    restart: unless-stopped
+    healthcheck:
+      test: echo "try { rs.status() } catch (err) { rs.initiate({_id:'rs0',members:[{_id:0,host:'mongodb:27017'},{_id:1,host:'mongodb2:27017'},{_id:2,host:'mongodb3:27017'}]}) }" | mongosh --port 27017 --quiet
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  mongodb2:
+    image: mongo:latest
+    container_name: mongodb2
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--port", "27017"]
+    ports:
+      - "27018:27017"
+    volumes:
+      - mongodb_data2:/data/db
+      - mongodb_config2:/data/configdb
+    extra_hosts:
+      - "localhost:host-gateway"
+    networks:
+      - mongodb_network
+    restart: unless-stopped
+
+  mongodb3:
+    image: mongo:latest
+    container_name: mongodb3
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--port", "27017"]
+    ports:
+      - "27019:27017"
+    volumes:
+      - mongodb_data3:/data/db
+      - mongodb_config3:/data/configdb
+    extra_hosts:
+      - "localhost:host-gateway"
+    networks:
+      - mongodb_network
     restart: unless-stopped
 
 volumes:
@@ -17,3 +57,15 @@ volumes:
     driver: local
   mongodb_config:
     driver: local
+  mongodb_data2:
+    driver: local
+  mongodb_config2:
+    driver: local
+  mongodb_data3:
+    driver: local
+  mongodb_config3:
+    driver: local
+
+networks:
+  mongodb_network:
+    driver: bridge
